@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Финансы</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+
+body{
+font-family:Arial;
+margin:0;
+background:#f3f4f6;
+font-size:18px;
+}
+
+header{
+background:#111827;
+color:white;
+padding:20px;
+font-size:28px;
+font-weight:bold;
+text-align:center;
+}
+
+nav{
+display:flex;
+justify-content:space-around;
+background:white;
+padding:15px;
+font-size:20px;
+box-shadow:0 2px 5px rgba(0,0,0,0.1);
+}
+
+nav button{
+background:none;
+border:none;
+font-size:20px;
+cursor:pointer;
+padding:10px;
+}
+
+.container{
+padding:20px;
+max-width:900px;
+margin:auto;
+}
+
+.card{
+background:white;
+padding:25px;
+border-radius:14px;
+margin-bottom:20px;
+box-shadow:0 4px 10px rgba(0,0,0,0.05);
+}
+
+input,select{
+width:100%;
+padding:14px;
+margin-top:10px;
+margin-bottom:15px;
+font-size:18px;
+border-radius:8px;
+border:1px solid #ddd;
+box-sizing:border-box;
+}
+
+button.main{
+width:100%;
+padding:15px;
+font-size:20px;
+background:#4f46e5;
+color:white;
+border:none;
+border-radius:10px;
+cursor:pointer;
+}
+
+button.edit{
+background:#f59e0b;
+border:none;
+padding:6px 12px;
+border-radius:6px;
+color:white;
+cursor:pointer;
+margin-left:10px;
+}
+
+button.delete{
+background:#ef4444;
+border:none;
+padding:6px 12px;
+border-radius:6px;
+color:white;
+cursor:pointer;
+margin-left:6px;
+}
+
+.history-item{
+display:flex;
+justify-content:space-between;
+padding:12px 0;
+border-bottom:1px solid #eee;
+align-items:center;
+}
+
+#toast{
+position:fixed;
+bottom:20px;
+left:50%;
+transform:translateX(-50%);
+background:#16a34a;
+color:white;
+padding:14px 24px;
+border-radius:10px;
+opacity:0;
+transition:0.3s;
+font-size:18px;
+}
+
+canvas{
+max-width:350px;
+margin:auto;
+display:block;
+}
+
+.hidden{
+display:none;
+}
+
+</style>
+</head>
+
+<body>
+
+<header>💰 Мои Финансы</header>
+
+<nav>
+<button onclick="openTab('add')">Добавить</button>
+<button onclick="openTab('history')">История</button>
+<button onclick="openTab('stats')">Статистика</button>
+<button onclick="openTab('months')">Месяцы</button>
+</nav>
+
+<div class="container">
+
+<!-- Добавление -->
+<div id="add">
+
+<div class="card">
+
+<h2>Добавить расход</h2>
+
+<input id="amount" type="number" placeholder="Сумма">
+
+<input id="category" placeholder="Категория (еда, транспорт)">
+
+<button class="main" onclick="addExpense()">Добавить</button>
+
+</div>
+
+</div>
+
+<!-- История -->
+<div id="history" class="hidden">
+
+<div class="card">
+
+<h2>История расходов</h2>
+
+<div id="historyList"></div>
+
+</div>
+
+</div>
+
+<!-- Статистика -->
+<div id="stats" class="hidden">
+
+<div class="card">
+
+<h2>Статистика расходов</h2>
+
+<canvas id="chart"></canvas>
+
+</div>
+
+</div>
+
+<!-- Месяцы -->
+<div id="months" class="hidden">
+
+<div class="card">
+
+<h2>Расходы по месяцам</h2>
+
+<div id="monthStats"></div>
+
+</div>
+
+</div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+
+let expenses = JSON.parse(localStorage.getItem("expenses")) || []
+
+function openTab(tab){
+
+document.querySelectorAll(".container > div")
+.forEach(e=>e.classList.add("hidden"))
+
+document.getElementById(tab).classList.remove("hidden")
+
+if(tab==="stats") drawChart()
+if(tab==="history") renderHistory()
+if(tab==="months") renderMonths()
+
+}
+
+function showToast(text){
+
+let t=document.getElementById("toast")
+
+t.innerText=text
+t.style.opacity=1
+
+setTimeout(()=>{
+t.style.opacity=0
+},3000)
+
+}
+
+function addExpense(){
+
+let amount = Number(document.getElementById("amount").value)
+let category = document.getElementById("category").value.toLowerCase().trim()
+
+if(!amount || !category){
+showToast("Введите данные")
+return
+}
+
+let date = new Date()
+
+expenses.push({
+amount,
+category,
+date:date.toISOString()
+})
+
+save()
+
+document.getElementById("amount").value=""
+document.getElementById("category").value=""
+
+showToast("Расход добавлен")
+
+renderHistory()
+
+}
+
+function save(){
+localStorage.setItem("expenses",JSON.stringify(expenses))
+}
+
+function renderHistory(){
+
+let list=document.getElementById("historyList")
+list.innerHTML=""
+
+expenses.forEach((e,i)=>{
+
+let div=document.createElement("div")
+div.className="history-item"
+
+div.innerHTML=`
+<div>
+<b>${e.category}</b><br>
+${e.amount} ₽
+</div>
+
+<div>
+<button class="edit" onclick="editExpense(${i})">✏️</button>
+<button class="delete" onclick="deleteExpense(${i})">🗑</button>
+</div>
+`
+
+list.appendChild(div)
+
+})
+
+}
+
+function editExpense(i){
+
+let newAmount=prompt("Новая сумма",expenses[i].amount)
+
+if(newAmount){
+expenses[i].amount=Number(newAmount)
+save()
+renderHistory()
+drawChart()
+}
+
+}
+
+function deleteExpense(i){
+
+expenses.splice(i,1)
+
+save()
+
+renderHistory()
+
+drawChart()
+
+}
+
+function drawChart(){
+
+let categories={}
+
+expenses.forEach(e=>{
+
+if(!categories[e.category]) categories[e.category]=0
+
+categories[e.category]+=e.amount
+
+})
+
+let data={
+labels:Object.keys(categories),
+datasets:[{
+data:Object.values(categories)
+}]
+}
+
+new Chart(document.getElementById("chart"),{
+type:"pie",
+data:data
+})
+
+}
+
+function renderMonths(){
+
+let stats={}
+
+expenses.forEach(e=>{
+
+let d=new Date(e.date)
+
+let key=d.getFullYear()+"-"+(d.getMonth()+1)
+
+if(!stats[key]) stats[key]=0
+
+stats[key]+=e.amount
+
+})
+
+let div=document.getElementById("monthStats")
+
+div.innerHTML=""
+
+for(let m in stats){
+
+let el=document.createElement("div")
+
+el.style.padding="10px 0"
+
+el.innerHTML=`${m} — <b>${stats[m]} ₽</b>`
+
+div.appendChild(el)
+
+}
+
+}
+
+renderHistory()
+
+</script>
+
+</body>
+</html>
